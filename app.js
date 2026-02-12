@@ -2,14 +2,14 @@
 // CONFIGURATION
 // ==========================================
 const CONFIG = {
-    // --- REMPLACEZ CECI PAR VOS ADRESSES ---
+    // --- VOS ADRESSES ICI ---
     MINING: "0xcD718eCb9e46f474E28508E07b692610488a4Ba4", 
     FTA: "0x535bBe393D64a60E14B731b7350675792d501623",          
     USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", 
     CHAIN_ID: 137 
 };
 
-// --- ABI ---
+// --- ABI (MISE À JOUR AVEC DIFFICULTY) ---
 const MINING_ABI = [
     "function buyMachine(uint256 typeId)",
     "function claimRewards()",
@@ -19,7 +19,8 @@ const MINING_ABI = [
     "function getActivePower(address) view returns (uint256)",
     "function exchangeRate() view returns (uint256)",
     "function machineTypes(uint256) view returns (uint256 price, uint256 power)",
-    "function getMachineCount() view returns (uint256)"
+    "function getMachineCount() view returns (uint256)",
+    "function difficultyMultiplier() view returns (uint256)" // <--- AJOUTÉ ICI
 ];
 
 const ERC20_ABI = [
@@ -92,7 +93,6 @@ class Application {
             document.getElementById('ref-link').value = window.location.origin + "?ref=" + this.user;
 
             this.updateData();
-            // Boucle de refresh
             setInterval(() => this.updateData(), 5000);
 
         } catch (e) {
@@ -127,12 +127,12 @@ class Application {
             const rate = await this.contracts.mining.exchangeRate();
             this.currentRate = parseFloat(ethers.formatUnits(rate, 8));
 
-            // CORRECTION ICI : formatUnits(..., 8) pour le FTA (puissance et balance)
-            document.getElementById('val-power').innerText = parseFloat(ethers.formatUnits(power, 8)).toFixed(2);
+            // AFFICHAGE PUISSANCE DASHBOARD (AVEC DIFFICULTÉ)
+            document.getElementById('val-power').innerText = parseFloat(ethers.formatUnits(power, 8)).toFixed(4);
+            
             document.getElementById('bal-usdt').innerText = parseFloat(ethers.formatUnits(usdtBal, 6)).toFixed(2);
             document.getElementById('bal-fta').innerText = parseFloat(ethers.formatUnits(ftaBal, 8)).toFixed(2);
             
-            // Swap UI
             document.getElementById('swap-bal-from').innerText = this.swapDirection === 'USDT_TO_FTA' ? parseFloat(ethers.formatUnits(usdtBal, 6)).toFixed(2) : parseFloat(ethers.formatUnits(ftaBal, 8)).toFixed(2);
             document.getElementById('swap-bal-to').innerText = this.swapDirection === 'USDT_TO_FTA' ? parseFloat(ethers.formatUnits(ftaBal, 8)).toFixed(2) : parseFloat(ethers.formatUnits(usdtBal, 6)).toFixed(2);
             document.getElementById('swap-rate').innerText = `1 USDT = ${this.currentRate} FTA`;
@@ -146,7 +146,7 @@ class Application {
         }
     }
 
-       async renderShop() {
+    async renderShop() {
         const container = document.getElementById('shop-list');
         const count = await this.contracts.mining.getMachineCount();
         const icons = ["🟢", "🔵", "🟣", "🟡", "🔴"];
@@ -156,15 +156,16 @@ class Application {
             const data = await this.contracts.mining.machineTypes(i);
             const price = parseFloat(ethers.formatUnits(data.price, 6)).toFixed(2);
             
-            // Récupérer le multiplicateur de difficulté actuel (que vous avez changé sur PolygonScan)
+            // --- CORRECTION MATHÉMATIQUE ICI ---
+            // On récupère le multiplicateur de difficulté depuis le contrat
             const multiplier = await this.contracts.mining.difficultyMultiplier();
             
-            // CALCUL : (BasePower * Multiplicateur) / 10^18
-            // Cela applique la division que vous avez mise dans le contrat
-            const realPower = (data.power * multiplier) / BigInt(10**18);
+            // Calcul : (Puissance de base * Multiplicateur) / 10^18
+            // On utilise des BigInt (n) pour la division pour éviter les erreurs d'arrondi
+            const rawPower = (data.power * multiplier) / 1000000000000000000n;
             
-            // Affichage avec 4 décimales pour bien voir les petits nombres (0.0005)
-            const power = parseFloat(ethers.formatUnits(realPower, 8)).toFixed(4);
+            // On convertit le résultat en format décimal FTA (8 décimales)
+            const power = parseFloat(ethers.formatUnits(rawPower, 8)).toFixed(4);
             
             const div = document.createElement('div');
             div.className = 'rig-item';
