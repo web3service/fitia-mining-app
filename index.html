@@ -10,13 +10,13 @@
 </head>
 <body>
 
-    <!-- BACKGROUND EFFECT -->
+    <!-- BACKGROUND -->
     <div class="bg-gradient"></div>
 
     <!-- NOTIFICATIONS -->
     <div id="toast-container"></div>
 
-    <!-- MAIN APP WRAPPER -->
+    <!-- CONTAINER PRINCIPAL -->
     <div class="app-container">
         
         <!-- HEADER -->
@@ -32,13 +32,13 @@
             </div>
         </header>
 
-        <!-- CONTENT AREA -->
+        <!-- CONTENU -->
         <main id="main-view">
             
-            <!-- DASHBOARD VIEW -->
+            <!-- ACCUEIL -->
             <div id="view-dashboard" class="view active">
                 
-                <!-- REFERRAL BOX -->
+                <!-- PARRAINAGE -->
                 <div class="card glass" id="ref-box">
                     <div class="card-header">
                         <h3>Parrainage</h3>
@@ -56,7 +56,7 @@
                     </div>
                 </div>
 
-                <!-- STATS OVERVIEW -->
+                <!-- STATS -->
                 <div class="stats-grid">
                     <div class="stat-card primary">
                         <small>PUISSANCE</small>
@@ -70,13 +70,13 @@
                     </div>
                 </div>
 
-                <!-- MAIN ACTION -->
+                <!-- BOUTON MINE -->
                 <button class="btn-mega" onclick="App.claim()">
                     <span class="pulse-ring"></span>
                     RÉCLAMER
                 </button>
 
-                <!-- USER BALANCES -->
+                <!-- SOLDES -->
                 <div class="card">
                     <div class="row-between">
                         <span>Portefeuille USDT</span>
@@ -89,15 +89,15 @@
                 </div>
             </div>
 
-            <!-- SHOP VIEW -->
+            <!-- BOUTIQUE -->
             <div id="view-shop" class="view">
                 <h2 class="view-title">Marché des Rigs</h2>
                 <div id="shop-list" class="grid-list">
-                    <!-- JS Injected -->
+                    <!-- Rempli par JS -->
                 </div>
             </div>
 
-            <!-- SWAP VIEW -->
+            <!-- SWAP -->
             <div id="view-swap" class="view">
                 <h2 class="view-title">Échange Interne</h2>
                 <div class="card swap-interface">
@@ -127,7 +127,7 @@
 
         </main>
 
-        <!-- BOTTOM NAV -->
+        <!-- NAVIGATION -->
         <nav class="bottom-nav">
             <button class="nav-item active" onclick="App.nav('dashboard')">
                 <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
@@ -145,7 +145,7 @@
 
     </div>
 
-    <!-- LOADING OVERLAY -->
+    <!-- LOADER -->
     <div id="loader" class="loader hidden">
         <div class="spinner-ring"></div>
         <p id="loader-text">Traitement...</p>
