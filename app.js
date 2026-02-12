@@ -146,7 +146,7 @@ class Application {
         }
     }
 
-    async renderShop() {
+       async renderShop() {
         const container = document.getElementById('shop-list');
         const count = await this.contracts.mining.getMachineCount();
         const icons = ["🟢", "🔵", "🟣", "🟡", "🔴"];
@@ -156,8 +156,15 @@ class Application {
             const data = await this.contracts.mining.machineTypes(i);
             const price = parseFloat(ethers.formatUnits(data.price, 6)).toFixed(2);
             
-            // CORRECTION ICI : formatUnits(..., 8) pour la puissance FTA
-            const power = parseFloat(ethers.formatUnits(data.power, 8)).toFixed(2);
+            // Récupérer le multiplicateur de difficulté actuel (que vous avez changé sur PolygonScan)
+            const multiplier = await this.contracts.mining.difficultyMultiplier();
+            
+            // CALCUL : (BasePower * Multiplicateur) / 10^18
+            // Cela applique la division que vous avez mise dans le contrat
+            const realPower = (data.power * multiplier) / BigInt(10**18);
+            
+            // Affichage avec 4 décimales pour bien voir les petits nombres (0.0005)
+            const power = parseFloat(ethers.formatUnits(realPower, 8)).toFixed(4);
             
             const div = document.createElement('div');
             div.className = 'rig-item';
