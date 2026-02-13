@@ -37,7 +37,6 @@ header {
     backdrop-filter: blur(10px); background: rgba(15, 23, 42, 0.8);
     border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 10;
 }
-
 .brand { display: flex; align-items: center; gap: 10px; }
 .logo-icon { font-size: 1.5rem; }
 .brand-text { font-weight: 800; letter-spacing: 1px; font-size: 1.1rem; }
@@ -47,7 +46,6 @@ header {
     background: var(--text); color: var(--bg); border: none; padding: 8px 16px;
     border-radius: 20px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
 }
-
 .wallet-status { text-align: right; display: flex; align-items: center; gap: 8px; }
 #addr-display { font-family: monospace; color: var(--primary); font-size: 0.9rem; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 10px var(--primary); }
@@ -102,9 +100,37 @@ main { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 100px; }
     transition: 0.3s;
 }
 .rig-item:hover { border-color: var(--primary); transform: translateY(-5px); }
-.rig-name { font-weight: bold; display: block; margin-bottom: 5px; font-size: 1.1rem; }
-.rig-power { color: var(--accent); font-size: 0.9rem; margin-bottom: 10px; display: block; }
-.rig-price { color: var(--primary); font-size: 1.2rem; font-weight: bold; display: block; margin-bottom: 15px; }
+
+/* --- STYLE INVENTAIRE ---
+.expired {
+    border: 1px dashed #555;
+    opacity: 0.6;
+    background: rgba(255,0,0,0.02);
+}
+.status-active { color: #10b981; font-weight: bold; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1px; }
+.status-expired { color: #ef4444; font-weight: bold; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1px; }
+.working-indicator { color: #10b981; font-size: 0.8rem; animation: blink 1.5s infinite; }
+.stopped-indicator { color: #888; font-size: 0.8rem; }
+@keyframes blink { 50% { opacity: 0.5; } }
+
+/* --- STYLE PUISSANCE DUALE --- */
+.rig-stats {
+    font-size: 0.75rem; color: #666; margin-bottom: 5px;
+    display: flex; justify-content: space-between; 
+    background: rgba(0,0,0,0.2); 
+    padding: 5px; 
+    border-radius: 4px;
+}
+.stat-base { 
+    color: #ff4d4d; 
+    text-decoration: line-through; 
+    font-size: 0.65rem;
+} 
+.stat-real { 
+    color: var(--primary); 
+    font-weight: bold; 
+    font-size: 0.9rem; 
+}
 
 .swap-interface { padding: 25px; }
 .swap-header { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; }
@@ -120,7 +146,7 @@ main { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 100px; }
     border-top: 1px solid rgba(255,255,255,0.05);
     display: flex; justify-content: space-around; align-items: center; z-index: 100;
 }
-.nav-item { flex: 1; height: 100%; border: none; background: none; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 0.75rem; cursor: pointer; transition: 0.2s; }
+.nav-item { flex: 1; height: 100%; border: none; background: none; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.75rem; cursor: pointer; transition: 0.2s; }
 .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
 .nav-item.active { color: var(--primary); }
 
@@ -138,17 +164,3 @@ main { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 100px; }
 
 .btn-sm { padding: 8px; font-size: 0.8rem; border-radius: 6px; }
 .btn-full { width: 100%; border: none; background: var(--accent); color: white; cursor: pointer; }
-
-/* Ajoutez ceci à la fin de style.css */
-.rig-stats {
-    font-size: 0.75rem;
-    color: #666;
-    margin-bottom: 5px;
-    display: flex;
-    justify-content: space-between;
-    background: rgba(0,0,0,0.2);
-    padding: 5px;
-    border-radius: 4px;
-}
-.stat-base { color: #ff4d4d; text-decoration: line-through; } /* Prix catalogue */
-.stat-real { color: #00ff9d; font-weight: bold; } /* Prix après réglage */
