@@ -3,147 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>FITIA MINER PRO</title>
+    <meta name="theme-color" content="#0f172a">
+    <title>FITIA PRO MINER</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 </head>
 <body>
 
+    <!-- BACKGROUND -->
+    <div class="bg-gradient"></div>
+
     <!-- NOTIFICATIONS -->
     <div id="toast-container"></div>
 
-    <!-- HEADER -->
-    <header>
-        <div class="brand">
-            <div class="logo-icon">⚡</div>
-            <div class="brand-text">FITIA <span class="pro-badge">PRO</span></div>
-        </div>
-        <button id="btn-connect" class="btn-wallet" onclick="App.connect()">Connecter</button>
-        <div id="wallet-status" class="wallet-status hidden">
-            <span id="addr-display">0x...</span>
-            <span class="status-dot online"></span>
-        </div>
-    </header>
+    <!-- CONTAINER PRINCIPAL -->
+    <div class="app-container">
+       
+        <!-- HEADER -->
+        <header>
+            <div class="brand">
+                <div class="logo-icon">⚡</div>
+                <div class="brand-text">FITIA <span class="pro-badge">PRO</span></div>
+            </div>
+            <button id="btn-connect" class="btn-wallet" onclick="App.connect()">Connecter</button>
+            <div id="wallet-status" class="wallet-status hidden">
+                <span id="addr-display">0x...</span>
+                <span class="status-dot online"></span>
+            </div>
+        </header>
 
-    <!-- MAIN CONTENT -->
-    <main id="main-view">
-        
-        <!-- ACCUEIL -->
-        <section id="view-dashboard" class="view active">
-            
-            <!-- PARRAINAGE -->
-            <div class="card glass" id="ref-box">
-                <div class="card-header">
-                    <h3>Parrainage</h3>
-                    <span class="badge">3 Niveaux</span>
-                </div>
-                <div class="card-body">
-                    <div class="input-group" onclick="App.copyLink()">
-                        <input type="text" id="ref-link" readonly value="Connectez-vous pour voir votre lien...">
-                        <button class="icon-btn">📋</button>
+        <!-- CONTENU -->
+        <main id="main-view">
+           
+            <!-- ACCUEIL -->
+            <div id="view-dashboard" class="view active">
+               
+                <!-- PARRAINAGE -->
+                <div class="card glass" id="ref-box">
+                    <div class="card-header">
+                        <h3>Parrainage</h3>
+                        <span class="badge">3 Niveaux</span>
                     </div>
-                    <div id="bind-ref-area" style="display:none; margin-top:10px;">
-                        <p class="small-text">Code détecté : <span id="detected-ref" class="highlight"></span></p>
-                        <button class="btn-sm btn-full" onclick="App.bindReferrer()">LIER MON PARRAIN</button>
+                    <div class="card-body">
+                        <div class="input-group" onclick="App.copyLink()">
+                            <input type="text" id="ref-link" readonly value="Connectez-vous pour voir votre lien...">
+                            <button class="icon-btn">📋</button>
+                        </div>
+                        <div id="bind-ref-area" style="display:none; margin-top:10px;">
+                            <p class="small-text">Code détecté : <span id="detected-ref" class="highlight"></span></p>
+                            <button class="btn-sm btn-full" onclick="App.bindReferrer()">LIER MON PARRAIN</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STATS -->
+                <div class="stats-grid">
+                    <div class="stat-card primary">
+                        <small>PUISSANCE</small>
+                        <div class="stat-val" id="val-power">0.00</div>
+                        <small>FTA / sec</small>
+                    </div>
+                    <div class="stat-card accent">
+                        <small>EN ATTENTE</small>
+                        <div class="stat-val" id="val-pending">0.00</div>
+                        <small>FTA</small>
+                    </div>
+                </div>
+
+                <!-- BOUTON MINE -->
+                <button class="btn-mega" onclick="App.claim()">
+                    <span class="pulse-ring"></span>
+                    RÉCLAMER
+                </button>
+
+                <!-- SOLDES -->
+                <div class="card">
+                    <div class="row-between">
+                        <span>Portefeuille USDT</span>
+                        <span class="balance" id="bal-usdt">0.00</span>
+                    </div>
+                    <div class="row-between" style="margin-top:10px;">
+                        <span>Portefeuille FTA</span>
+                        <span class="balance" id="bal-fta">0.00</span>
                     </div>
                 </div>
             </div>
 
-            <!-- STATS -->
-            <div class="stats-grid">
-                <div class="stat-card primary">
-                    <small>PUISSANCE</small>
-                    <div class="stat-val" id="val-power">0.00</div>
-                    <small>FTA / sec</small>
-                </div>
-                <div class="stat-card accent">
-                    <small>EN ATTENTE</small>
-                    <div class="stat-val" id="val-pending">0.00</div>
-                    <small>FTA</small>
+            <!-- BOUTIQUE -->
+            <div id="view-shop" class="view">
+                <h2 class="view-title">Marché des Rigs</h2>
+                <div id="shop-list" class="grid-list">
+                    <!-- Rempli par JS -->
                 </div>
             </div>
 
-            <!-- ACTION -->
-            <button class="btn-mega" onclick="App.claim()">
-                <span class="pulse-ring"></span>
-                RÉCLAMER
+            <!-- SWAP -->
+            <div id="view-swap" class="view">
+                <h2 class="view-title">Échange Interne</h2>
+                <div class="card swap-interface">
+                    <div class="swap-header">
+                        <span>Vous payez</span>
+                        <span>Balance: <span id="swap-bal-from">0</span></span>
+                    </div>
+                    <div class="input-wrap">
+                        <input type="number" id="swap-from-in" placeholder="0.0" oninput="App.calcSwap()">
+                        <div class="token-select" onclick="App.toggleSwap()" id="token-from-display">USDT</div>
+                    </div>
+                   
+                    <div class="swap-arrow" onclick="App.toggleSwap()">⇄</div>
+
+                    <div class="swap-header">
+                        <span>Vous recevez</span>
+                        <span>Balance: <span id="swap-bal-to">0</span></span>
+                    </div>
+                    <div class="input-wrap">
+                        <input type="number" id="swap-to-in" placeholder="0.0" readonly>
+                        <div class="token-select" style="background:#333; cursor:default;" id="token-to-display">FTA</div>
+                    </div>
+                    <div class="rate-info" id="swap-rate">1 USDT = 0 FTA</div>
+                    <button class="btn-primary" id="btn-execute-swap" onclick="App.executeSwap()">ÉCHANGER</button>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- NAVIGATION -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" onclick="App.nav('dashboard')">
+                <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                <span>Accueil</span>
             </button>
+            <button class="nav-item" onclick="App.nav('shop')">
+                <svg viewBox="0 0 24 24"><path d="M12 2l-5.5 9h11z"/></svg>
+                <span>Shop</span>
+            </button>
+            <button class="nav-item" onclick="App.nav('swap')">
+                <svg viewBox="0 0 24 24"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+                <span>Swap</span>
+            </button>
+        </nav>
 
-            <!-- SOLDES -->
-            <div class="card">
-                <div class="row-between">
-                    <span>Portefeuille USDT</span>
-                    <span class="balance" id="bal-usdt">0.00</span>
-                </div>
-                <div class="row-between" style="margin-top:10px;">
-                    <span>Portefeuille FTA</span>
-                    <span class="balance" id="bal-fta">0.00</span>
-                </div>
-            </div>
-        </section>
-
-        <!-- BOUTIQUE -->
-        <section id="view-shop" class="view">
-            <h2 class="view-title">Marché des Rigs</h2>
-            <div id="shop-list" class="grid-list">
-                <!-- JS Injected -->
-            </div>
-        </section>
-
-        <!-- SWAP -->
-        <section id="view-swap" class="view">
-            <h2 class="view-title">Échange Interne</h2>
-            <div class="card swap-interface">
-                <div class="swap-header">
-                    <span>Vous payez</span>
-                    <span>Balance: <span id="swap-bal-from">0</span></span>
-                </div>
-                <div class="input-wrap">
-                    <input type="number" id="swap-from-in" placeholder="0.0" oninput="App.calcSwap()">
-                    <div class="token-select" onclick="App.toggleSwap()" id="token-from-display">USDT</div>
-                </div>
-                
-                <div class="swap-arrow" onclick="App.toggleSwap()">⇄</div>
-
-                <div class="swap-header">
-                    <span>Vous recevez</span>
-                    <span>Balance: <span id="swap-bal-to">0</span></span>
-                </div>
-                <div class="input-wrap">
-                    <input type="number" id="swap-to-in" placeholder="0.0" readonly>
-                    <div class="token-select" style="background:#333; cursor:default;" id="token-to-display">FTA</div>
-                </div>
-                <div class="rate-info" id="swap-rate">1 USDT = 0 FTA</div>
-                <button class="btn-primary" id="btn-execute-swap" onclick="App.executeSwap()">ÉCHANGER</button>
-            </div>
-        </section>
-
-        <!-- INVENTAIRE (NOUVEAU) -->
-        <section id="view-inventory" class="view">
-            <h2 class="view-title">Mes Rigs</h2>
-            <div id="inventory-list" class="grid-list">
-                <!-- JS Injected -->
-            </div>
-        </section>
-
-    </main>
-
-    <!-- NAVIGATION -->
-    <nav class="bottom-nav">
-        <button class="nav-item active" onclick="App.nav('dashboard')">
-            <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
-            <span>Accueil</span>
-        </button>
-        <button class="nav-item" onclick="App.nav('shop')">
-            <svg viewBox="0 0 24 24"><path d="M12 2l-5.5 9h11z"/></svg>
-            <span>Boutique</span>
-        </button>
-        <button class="nav-item" onclick="App.nav('swap')">
-            <svg viewBox="0 0 24 24"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
-            <span>Swap</span>
-        </button>
-        </button>
-    </nav>
+    </div>
 
     <!-- LOADER -->
     <div id="loader" class="loader hidden">

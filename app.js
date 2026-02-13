@@ -2,13 +2,14 @@
 // CONFIGURATION
 // ==========================================
 const CONFIG = {
-    MINING: "0xcD718eCb9e46f474E28508E07b692610488a4Ba4", 
+    // --- VOS ADRESSES ICI ---
+    MINING: "0xcD718eCb9e46f474E28508E07b692610488a4Ba4",
     FTA: "0x535bBe393D64a60E14B731b7350675792d501623",          
-    USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", 
-    CHAIN_ID: 137 
+    USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+    CHAIN_ID: 137
 };
 
-// --- ABI (INTERFACES COMPLETES)
+// --- ABI (MISE À JOUR AVEC DIFFICULTY) ---
 const MINING_ABI = [
     "function buyMachine(uint256 typeId)",
     "function claimRewards()",
@@ -19,8 +20,7 @@ const MINING_ABI = [
     "function exchangeRate() view returns (uint256)",
     "function machineTypes(uint256) view returns (uint256 price, uint256 power)",
     "function getMachineCount() view returns (uint256)",
-    "function difficultyMultiplier() view returns (uint256)",
-    "function users(address) view returns (uint256 lastClaimTime, uint256[] machines)" // <--- CLÉ POUR L'INVENTAIRE
+    "function difficultyMultiplier() view returns (uint256)" // <--- AJOUTÉ ICI
 ];
 
 const ERC20_ABI = [
@@ -46,9 +46,9 @@ class Application {
     }
 
     async init() {
-        console.log("FITIA PRO V4 - Version Clean");
+        console.log("FITIA PRO Chargé");
         this.checkReferral();
-        
+       
         if (window.ethereum) {
             this.provider = new ethers.BrowserProvider(window.ethereum);
             window.ethereum.on('accountsChanged', () => window.location.reload());
@@ -69,9 +69,9 @@ class Application {
 
     async connect() {
         if (!window.ethereum) return;
-        
-        this.setLoader(true, "Connexion sécurisée...");
-        
+       
+        this.setLoader(true, "Connexion...");
+       
         try {
             await window.ethereum.request({ method: 'eth_requestAccounts' });
             this.signer = await this.provider.getSigner();
@@ -105,7 +105,7 @@ class Application {
     async switchNetwork() {
         try {
             await window.ethereum.request({
-                method: 'wallet_switchEjecterChain',
+                method: 'wallet_switchEthereumChain',
                 params: [{ chainId: '0x' + CONFIG.CHAIN_ID.toString(16) }],
             });
         } catch (e) {
@@ -127,9 +127,9 @@ class Application {
             const rate = await this.contracts.mining.exchangeRate();
             this.currentRate = parseFloat(ethers.formatUnits(rate, 8));
 
-            // AFFICHAGE PUISSANCE (avec calcul de difficulté inclus)
-            document.getElementById('val-power').innerText = parseFloat(ethers.formatUnits(power, 8)).toFixed(5);
-            
+            // AFFICHAGE PUISSANCE DASHBOARD (AVEC DIFFICULTÉ)
+            document.getElementById('val-power').innerText = parseFloat(ethers.formatUnits(power, 8)).toFixed(4);
+           
             document.getElementById('bal-usdt').innerText = parseFloat(ethers.formatUnits(usdtBal, 6)).toFixed(2);
             document.getElementById('bal-fta').innerText = parseFloat(ethers.formatUnits(ftaBal, 8)).toFixed(2);
            
@@ -149,112 +149,31 @@ class Application {
     async renderShop() {
         const container = document.getElementById('shop-list');
         const count = await this.contracts.mining.getMachineCount();
-        const icons = ["🟢", "💚", "💎", "💎�", "🔴"];
-        
+        const icons = ["🟢", "🔵", "🟣", "🟡", "🔴"];
+       
         container.innerHTML = '';
         for(let i=0; i<count; i++) {
             const data = await this.contracts.mining.machineTypes(i);
             const price = parseFloat(ethers.formatUnits(data.price, 6)).toFixed(2);
-            
-            // --- CALCUL PUISSANCE RÉELLE (Correction 0.0005) ---
-            // Lecture du multiplicateur depuis la blockchain (ex: 0.001)
-            let multiplier = 1.0;
-            try {
-                const rawDiff = await this.contracts.mining.difficultyMultiplier();
-                // Diagnostic : Afficher la valeur brute dans la console pour vérifier
-                console.log(`Debug Machine ${i}: Diff contractuel = ${rawDiff.toString()}`);
-                
-                // Calcul : (Puissance de base * Multiplicateur) / 10^18
-                // On utilise BigInt pour éviter les erreurs d'arrondi
-                const rawPower = (data.power * rawDiff) / 1000000000000000000n;
-                
-                const power = parseFloat(ethers.formatUnits(rawPower, 8)).toFixed(5); // 5 décimales pour 0.00050
-                
-                const basePower = parseFloat(thewers.formatUnits(data.power, 8)).toFixed(2);
-
-                const div = document.createElement('div');
-                div.className = 'rig-item';
-                div.innerHTML = `
-                    <span class="rig-name">RIG ${i+1}</span>
-                    <div class="rig-stats">
-                        <span class="stat-base">Base: ${basePower}</span>
-                        <span class="stat-real">Réelle: ${power}</span>
-                    </div>
-                    <span class="rig-price">${price} USDT</span>
-                    <button class="btn-primary" style="padding:10px; font-size:0.9rem" onclick="App.buyMachine(${i})">ACHETER</button>
-                `;
-                container.appendChild(div);
-            } catch (e) {
-                console.error("Erreur calcul puissance:", e);
-                // En cas d'erreur de lecture du multiplicateur, on affiche la base
-                const power = parseFloat(ethers.formatUnits(data.power, 8)).toFixed(2);
-                const div = document.createElement('div');
-                div.className = 'rig-item';
-                div.innerHTML = `<span class="rig-name">RIG ${i+1}</span><span class="rig-power">${power} FTA/s</span><span class="rig-price">${price} USDT</span><button class="btn-primary" style="padding:10px; font-size:0.9rem" onclick="App.buyMachine(${i})">ACHETER</button>`;
-                container.appendChild(div);
-            }
-    }
-
-    // --- FONCTION INVENTAIRE ---
-    async renderInventory() {
-        const container = document.getElementById('inventory-list');
-        container.innerHTML = '';
-        
-        // Récupérer les machines de l'utilisateur via l'ABI complète
-        const userData = await this.contracts.mining.users(this.user);
-        const machines = userData[1]; // machines est le tableau des machines achetées
-        const MACHINE_LIFESPAN = 90 * 24 * 60 * 60; // 90 jours en secondes
-
-        // Récupérer les détails des types de machines (puissance de base)
-        const machineTypes = [];
-        const typeCount = await this.contracts.mining.getMachineCount();
-        for(let i=0; i<typeCount; i++) {
-            const data = await this.contracts.mining.machineTypes(i);
-            machineTypes.push(data);
-        }
-
-        if (machines.length === 0) {
-            container.innerHTML = `<div style="text-align:center; color:#666; padding:20px; grid-column:1fr / -webkit-fill-available; span 2;">Aucune machine possédée.</div>`;
-            return;
-        }
-
-        const now = Math.floor(Date.now() / 1000); // Timestamp actuel en secondes
-
-        // Afficher chaque machine achetée
-        for(let i=0; i<machines.length; i++) {
-            const typeId = machines[i].typeId;
-            const boughtAt = machines[i].boughtAt;
-            const expiryTime = boughtAt + MACHINE_LIFESPAN;
-            
-            const isActive = now < expiryTime;
-            const machineType = machineTypes[typeId]; // Récupérer la puissance de base via l'ID stocké
-            const icon = ["💾", "💚", "💎", "💎�", "🔴"];
-
-            // Calcul de la puissance réelle
-            // On doit lire le multiplicateur de difficulté
-            let power = 0;
-            if (isActive) {
-                const rawDiff = await this.contracts.mining.difficultyMultiplier();
-                const rawPower = (machineType.power * rawDiff) / 1000000000000000000n;
-                power = parseFloat(ethers.formatUnits(rawPower, 8));
-            } else {
-                power = 0;
-            }
-
-            // Calcul de la puissance de base pour comparaison
-            const basePower = parseFloat(ethers.formatUnits(machineType.power, 8));
-
+           
+            // --- CORRECTION MATHÉMATIQUE ICI ---
+            // On récupère le multiplicateur de difficulté depuis le contrat
+            const multiplier = await this.contracts.mining.difficultyMultiplier();
+           
+            // Calcul : (Puissance de base * Multiplicateur) / 10^18
+            // On utilise des BigInt (n) pour la division pour éviter les erreurs d'arrondi
+            const rawPower = (data.power * multiplier) / 1000000000000000000n;
+           
+            // On convertit le résultat en format décimal FTA (8 décimales)
+            const power = parseFloat(ethers.formatUnits(rawPower, 8)).toFixed(4);
+           
             const div = document.createElement('div');
-            div.className = isActive ? 'rig-item' : 'rig-item expired';
+            div.className = 'rig-item';
             div.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                    <span class="rig-name">RIG ${typeId + 1} (${icon})</span>
-                    <span class="${isActive ? 'status-active' : 'status-expired'}">${isActive ? 'ACTIF' : 'EXPIRÉ'}</span>
-                </div>
-                <div style="font-size: 0.9rem; color:${isActive ? '#fff' : '#888'}; margin-bottom:5px;">
-                    Puissance : ${power} FTA/s
-                    ${!isActive ? '<span class="working-indicator">⚡ Minage...</span>' : ''}
-                </div>
+                <span class="rig-name">RIG ${i+1}</span>
+                <span class="rig-power">${power} FTA/s</span>
+                <span class="rig-price">${price} USDT</span>
+                <button class="btn-primary" style="padding:10px; font-size:0.9rem" onclick="App.buyMachine(${i})">ACHETER</button>
             `;
             container.appendChild(div);
         }
@@ -274,7 +193,6 @@ class Application {
             await txBuy.wait();
             this.showToast("Achat réussi !");
             document.getElementById('shop-list').innerHTML = ''; // Force re-render
-            document.getElementById('inventory-list').innerHTML = '';
             this.updateData();
         } catch (e) { this.showToast("Erreur Achat", true); }
         this.setLoader(false);
@@ -378,6 +296,4 @@ class Application {
 }
 
 const App = new Application();
-window.onload = ```
-
-C'est le code final, propre et complet. Utilisez-le pour remplacer vos fichiers.
+window.onload = () => App.init();
