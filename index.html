@@ -10,16 +10,11 @@
 </head>
 <body>
 
-    <!-- BACKGROUND -->
     <div class="bg-gradient"></div>
-
-    <!-- NOTIFICATIONS -->
     <div id="toast-container"></div>
 
-    <!-- CONTAINER PRINCIPAL -->
     <div class="app-container">
-       
-        <!-- HEADER -->
+        
         <header>
             <div class="brand">
                 <div class="logo-icon">⚡</div>
@@ -32,12 +27,11 @@
             </div>
         </header>
 
-        <!-- CONTENU -->
         <main id="main-view">
-           
-            <!-- ACCUEIL -->
+            
+            <!-- DASHBOARD -->
             <div id="view-dashboard" class="view active">
-               
+                
                 <!-- PARRAINAGE -->
                 <div class="card glass" id="ref-box">
                     <div class="card-header">
@@ -70,7 +64,16 @@
                     </div>
                 </div>
 
-                <!-- BOUTON MINE -->
+                <!-- VISUALISEUR (NOUVEAU) -->
+                <div class="card visualizer-card">
+                    <div class="viz-header">
+                        <small>ACTIVITÉ MINIÈRE EN TEMPS RÉEL</small>
+                        <span id="viz-status">EN ATTENTE</span>
+                    </div>
+                    <canvas id="mining-canvas" width="300" height="100"></canvas>
+                </div>
+
+                <!-- ACTION -->
                 <button class="btn-mega" onclick="App.claim()">
                     <span class="pulse-ring"></span>
                     RÉCLAMER
@@ -89,12 +92,10 @@
                 </div>
             </div>
 
-            <!-- BOUTIQUE -->
+            <!-- SHOP -->
             <div id="view-shop" class="view">
                 <h2 class="view-title">Marché des Rigs</h2>
-                <div id="shop-list" class="grid-list">
-                    <!-- Rempli par JS -->
-                </div>
+                <div id="shop-list" class="grid-list"></div>
             </div>
 
             <!-- SWAP -->
@@ -109,9 +110,7 @@
                         <input type="number" id="swap-from-in" placeholder="0.0" oninput="App.calcSwap()">
                         <div class="token-select" onclick="App.toggleSwap()" id="token-from-display">USDT</div>
                     </div>
-                   
                     <div class="swap-arrow" onclick="App.toggleSwap()">⇄</div>
-
                     <div class="swap-header">
                         <span>Vous recevez</span>
                         <span>Balance: <span id="swap-bal-to">0</span></span>
@@ -127,7 +126,6 @@
 
         </main>
 
-        <!-- NAVIGATION -->
         <nav class="bottom-nav">
             <button class="nav-item active" onclick="App.nav('dashboard')">
                 <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
@@ -145,7 +143,6 @@
 
     </div>
 
-    <!-- LOADER -->
     <div id="loader" class="loader hidden">
         <div class="spinner-ring"></div>
         <p id="loader-text">Traitement...</p>

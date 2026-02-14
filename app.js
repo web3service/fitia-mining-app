@@ -2,14 +2,14 @@
 // CONFIGURATION
 // ==========================================
 const CONFIG = {
-    // --- VOS ADRESSES ICI ---
-    MINING: "0xcD718eCb9e46f474E28508E07b692610488a4Ba4",
+    // --- REMPLACEZ PAR VOS ADRESSES ---
+    MINING: "0xcD718eCb9e46f474E28508E07b692610488a4Ba4", 
     FTA: "0x535bBe393D64a60E14B731b7350675792d501623",          
-    USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
-    CHAIN_ID: 137
+    USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", 
+    CHAIN_ID: 137 
 };
 
-// --- ABI (MISE À JOUR AVEC DIFFICULTY) ---
+// --- ABI (AVEC DIFFICULTY MULTIPLIER) ---
 const MINING_ABI = [
     "function buyMachine(uint256 typeId)",
     "function claimRewards()",
@@ -20,7 +20,7 @@ const MINING_ABI = [
     "function exchangeRate() view returns (uint256)",
     "function machineTypes(uint256) view returns (uint256 price, uint256 power)",
     "function getMachineCount() view returns (uint256)",
-    "function difficultyMultiplier() view returns (uint256)" // <--- AJOUTÉ ICI
+    "function difficultyMultiplier() view returns (uint256)"
 ];
 
 const ERC20_ABI = [
@@ -33,7 +33,7 @@ const ERC20_ABI = [
 ];
 
 // ==========================================
-// LOGIQUE
+// LOGIQUE COMPLÈTE (MATHS + VISUALISEUR)
 // ==========================================
 class Application {
     constructor() {
@@ -43,12 +43,16 @@ class Application {
         this.user = null;
         this.currentRate = 0;
         this.swapDirection = 'USDT_TO_FTA';
+        
+        // Variables pour le visualiseur
+        this.vizContext = null;
+        this.vizBars = [];
     }
 
     async init() {
         console.log("FITIA PRO Chargé");
         this.checkReferral();
-       
+        
         if (window.ethereum) {
             this.provider = new ethers.BrowserProvider(window.ethereum);
             window.ethereum.on('accountsChanged', () => window.location.reload());
@@ -69,9 +73,9 @@ class Application {
 
     async connect() {
         if (!window.ethereum) return;
-       
+        
         this.setLoader(true, "Connexion...");
-       
+        
         try {
             await window.ethereum.request({ method: 'eth_requestAccounts' });
             this.signer = await this.provider.getSigner();
@@ -94,6 +98,9 @@ class Application {
 
             this.updateData();
             setInterval(() => this.updateData(), 5000);
+            
+            // Initialisation du visualiseur
+            this.initVisualizer();
 
         } catch (e) {
             console.error(e);
@@ -123,16 +130,37 @@ class Application {
         try {
             const usdtBal = await this.contracts.usdt.balanceOf(this.user);
             const ftaBal = await this.contracts.fta.balanceOf(this.user);
-            const power = await this.contracts.mining.getActivePower(this.user);
+            
+            // Récupérer la puissance BRUTE et le MULTIPLICATEUR
+            const rawPower = await this.contracts.mining.getActivePower(this.user);
+            const multiplier = await this.contracts.mining.difficultyMultiplier();
+            
+            // --- CALCUL CORRIGÉ ICI ---
+            // On applique la difficulté pour afficher la vraie valeur (ex: 0.0005)
+            const realPower = (rawPower * multiplier) / 1000000000000000000n;
+            
             const rate = await this.contracts.mining.exchangeRate();
             this.currentRate = parseFloat(ethers.formatUnits(rate, 8));
 
-            // AFFICHAGE PUISSANCE DASHBOARD (AVEC DIFFICULTÉ)
-            document.getElementById('val-power').innerText = parseFloat(ethers.formatUnits(power, 8)).toFixed(4);
-           
+            // Affichage Dashboard avec la puissance RÉELLE
+            document.getElementById('val-power').innerText = parseFloat(ethers.formatUnits(realPower, 8)).toFixed(5);
+            
+            // Gestion du visualiseur
+            const powerFloat = parseFloat(ethers.formatUnits(realPower, 8));
+            const statusEl = document.getElementById('viz-status');
+            if(powerFloat > 0) {
+                statusEl.innerText = "MINAGE ACTIF";
+                statusEl.style.color = "var(--primary)";
+                this.updateVisualizerIntensity(powerFloat);
+            } else {
+                statusEl.innerText = "AUCUNE MACHINE";
+                statusEl.style.color = "#666";
+                this.updateVisualizerIntensity(0);
+            }
+            
             document.getElementById('bal-usdt').innerText = parseFloat(ethers.formatUnits(usdtBal, 6)).toFixed(2);
             document.getElementById('bal-fta').innerText = parseFloat(ethers.formatUnits(ftaBal, 8)).toFixed(2);
-           
+            
             document.getElementById('swap-bal-from').innerText = this.swapDirection === 'USDT_TO_FTA' ? parseFloat(ethers.formatUnits(usdtBal, 6)).toFixed(2) : parseFloat(ethers.formatUnits(ftaBal, 8)).toFixed(2);
             document.getElementById('swap-bal-to').innerText = this.swapDirection === 'USDT_TO_FTA' ? parseFloat(ethers.formatUnits(ftaBal, 8)).toFixed(2) : parseFloat(ethers.formatUnits(usdtBal, 6)).toFixed(2);
             document.getElementById('swap-rate').innerText = `1 USDT = ${this.currentRate} FTA`;
@@ -150,23 +178,17 @@ class Application {
         const container = document.getElementById('shop-list');
         const count = await this.contracts.mining.getMachineCount();
         const icons = ["🟢", "🔵", "🟣", "🟡", "🔴"];
-       
+        
         container.innerHTML = '';
         for(let i=0; i<count; i++) {
             const data = await this.contracts.mining.machineTypes(i);
             const price = parseFloat(ethers.formatUnits(data.price, 6)).toFixed(2);
-           
-            // --- CORRECTION MATHÉMATIQUE ICI ---
-            // On récupère le multiplicateur de difficulté depuis le contrat
+            
+            // On utilise le même calcul que dans updateData pour la cohérence
             const multiplier = await this.contracts.mining.difficultyMultiplier();
-           
-            // Calcul : (Puissance de base * Multiplicateur) / 10^18
-            // On utilise des BigInt (n) pour la division pour éviter les erreurs d'arrondi
-            const rawPower = (data.power * multiplier) / 1000000000000000000n;
-           
-            // On convertit le résultat en format décimal FTA (8 décimales)
-            const power = parseFloat(ethers.formatUnits(rawPower, 8)).toFixed(4);
-           
+            const realPower = (data.power * multiplier) / 1000000000000000000n;
+            const power = parseFloat(ethers.formatUnits(realPower, 8)).toFixed(5);
+            
             const div = document.createElement('div');
             div.className = 'rig-item';
             div.innerHTML = `
@@ -192,7 +214,7 @@ class Application {
             const txBuy = await this.contracts.mining.buyMachine(id);
             await txBuy.wait();
             this.showToast("Achat réussi !");
-            document.getElementById('shop-list').innerHTML = ''; // Force re-render
+            document.getElementById('shop-list').innerHTML = ''; 
             this.updateData();
         } catch (e) { this.showToast("Erreur Achat", true); }
         this.setLoader(false);
@@ -292,6 +314,75 @@ class Application {
         div.innerText = msg;
         document.getElementById('toast-container').appendChild(div);
         setTimeout(() => div.remove(), 3000);
+    }
+
+    // ==========================================
+    // VISUALISEUR GRAPHIQUE (NOUVEAU)
+    // ==========================================
+    initVisualizer() {
+        const canvas = document.getElementById('mining-canvas');
+        if (!canvas) return;
+        
+        // Adapter la taille
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        
+        this.vizContext = canvas.getContext('2d');
+        
+        // Créer 10 barres
+        this.vizBars = [];
+        for(let i=0; i<10; i++) {
+            this.vizBars.push({
+                x: i * (canvas.width / 10) + 2,
+                width: (canvas.width / 10) - 4,
+                height: 0,
+                targetHeight: 0
+            });
+        }
+        
+        this.animateVisualizer();
+    }
+
+    updateVisualizerIntensity(power) {
+        // Calculer l'intensité (0 à 100%) basée sur la puissance
+        // Si power = 0.0005, on met une petite intensité visuelle
+        let intensity = 0;
+        if(power > 0) {
+            // Échelle arbitraire pour la démo
+            intensity = Math.min((power * 100) + 10, 100); 
+        }
+        
+        this.vizBars.forEach(bar => {
+            bar.targetHeight = (this.vizContext.canvas.height * intensity / 100) * Math.random();
+        });
+    }
+
+    animateVisualizer() {
+        const ctx = this.vizContext;
+        if(!ctx) return;
+        
+        const canvas = ctx.canvas;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary');
+        
+        this.vizBars.forEach(bar => {
+            // Animation fluide
+            bar.height += (bar.targetHeight - bar.height) * 0.1;
+            
+            // Dessin
+            const y = canvas.height - bar.height;
+            ctx.fillRect(bar.x, y, bar.width, bar.height);
+            
+            // Fluctuation aléatoire
+            bar.targetHeight += (Math.random() - 0.5) * 5;
+            
+            // Limites
+            if(bar.targetHeight < 0) bar.targetHeight = 0;
+            if(bar.targetHeight > canvas.height) bar.targetHeight = canvas.height;
+        });
+        
+        requestAnimationFrame(() => this.animateVisualizer());
     }
 }
 
