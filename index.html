@@ -10,11 +10,16 @@
 </head>
 <body>
 
+    <!-- BACKGROUND -->
     <div class="bg-gradient"></div>
+
+    <!-- NOTIFICATIONS -->
     <div id="toast-container"></div>
 
+    <!-- CONTAINER PRINCIPAL -->
     <div class="app-container">
         
+        <!-- HEADER -->
         <header>
             <div class="brand">
                 <div class="logo-icon">⚡</div>
@@ -27,9 +32,10 @@
             </div>
         </header>
 
+        <!-- CONTENU -->
         <main id="main-view">
             
-            <!-- DASHBOARD -->
+            <!-- ACCUEIL -->
             <div id="view-dashboard" class="view active">
                 
                 <!-- PARRAINAGE -->
@@ -64,16 +70,7 @@
                     </div>
                 </div>
 
-                <!-- VISUALISEUR (NOUVEAU) -->
-                <div class="card visualizer-card">
-                    <div class="viz-header">
-                        <small>ACTIVITÉ MINIÈRE EN TEMPS RÉEL</small>
-                        <span id="viz-status">EN ATTENTE</span>
-                    </div>
-                    <canvas id="mining-canvas" width="300" height="100"></canvas>
-                </div>
-
-                <!-- ACTION -->
+                <!-- BOUTON MINE -->
                 <button class="btn-mega" onclick="App.claim()">
                     <span class="pulse-ring"></span>
                     RÉCLAMER
@@ -92,10 +89,21 @@
                 </div>
             </div>
 
-            <!-- SHOP -->
+            <!-- INVENTAIRE (NOUVELLE FONCTIONNALITÉ) -->
+            <div id="view-inventory" class="view">
+                <h2 class="view-title">Mes Machines</h2>
+                <div id="inventory-list">
+                    <!-- Les cartes des machines achetées s'affichent ici -->
+                    <p style="text-align:center; color:#666; padding:20px;">Chargement de l'inventaire...</p>
+                </div>
+            </div>
+
+            <!-- BOUTIQUE -->
             <div id="view-shop" class="view">
                 <h2 class="view-title">Marché des Rigs</h2>
-                <div id="shop-list" class="grid-list"></div>
+                <div id="shop-list" class="grid-list">
+                    <!-- Rempli par JS -->
+                </div>
             </div>
 
             <!-- SWAP -->
@@ -110,7 +118,9 @@
                         <input type="number" id="swap-from-in" placeholder="0.0" oninput="App.calcSwap()">
                         <div class="token-select" onclick="App.toggleSwap()" id="token-from-display">USDT</div>
                     </div>
+                    
                     <div class="swap-arrow" onclick="App.toggleSwap()">⇄</div>
+
                     <div class="swap-header">
                         <span>Vous recevez</span>
                         <span>Balance: <span id="swap-bal-to">0</span></span>
@@ -126,10 +136,15 @@
 
         </main>
 
+        <!-- NAVIGATION -->
         <nav class="bottom-nav">
             <button class="nav-item active" onclick="App.nav('dashboard')">
                 <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
                 <span>Accueil</span>
+            </button>
+            <button class="nav-item" onclick="App.nav('inventory')">
+                <svg viewBox="0 0 24 24"><path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-1.05-1.96-.54-2.5 1.35l-.5.67-.5.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0-1.1.89-2 2-2 2-2V5c0-1.1.89-2 2-2 2-2v1h-9c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2 2h16c1.11 0 2-.89 2-2 2V8c0-1.11-.89-2-2-2-2z"/></svg>
+                <span>Mes Rigs</span>
             </button>
             <button class="nav-item" onclick="App.nav('shop')">
                 <svg viewBox="0 0 24 24"><path d="M12 2l-5.5 9h11z"/></svg>
@@ -143,6 +158,7 @@
 
     </div>
 
+    <!-- LOADER -->
     <div id="loader" class="loader hidden">
         <div class="spinner-ring"></div>
         <p id="loader-text">Traitement...</p>
