@@ -2,7 +2,7 @@
 // CONFIGURATION
 // ==========================================
 const CONFIG = {
-    MINING: "0xcD718eCb9e46f474E28508E07b692610488a4Ba4", // Remplacez par l'adresse du contrat
+    MINING: "0xcD718eCb9e46f474E28508E07b692610488a4Ba4", // Votre adresse contrat
     FTA: "0x535bBe393D64a60E14B731b7350675792d501623",          
     USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
     CHAIN_ID: 137
@@ -20,8 +20,6 @@ const MINING_ABI = [
     "function machineTypes(uint256) view returns (uint256 price, uint256 power)",
     "function getMachineCount() view returns (uint256)",
     "function difficultyMultiplier() view returns (uint256)",
-    
-    // Fonctions pour lister les machines (Multiples essais pour compatibilité)
     "function getUserMachines(address) view returns (uint256[] memory)",
     "function userMachines(address, uint256) view returns (uint256)",
     "function balanceOf(address, uint256) view returns (uint256)"
@@ -45,7 +43,7 @@ class Application {
         this.signer = null;
         this.contracts = {};
         this.user = null;
-        this.currentRate = 0;
+        this.currentRate = 2000; // Taux par défaut : 1 USDT = 2000 FTA
         this.swapDirection = 'USDT_TO_FTA';
        
         this.currentRealPower = 0;
@@ -178,9 +176,25 @@ class Application {
             document.getElementById('bal-usdt').innerText = parseFloat(ethers.formatUnits(usdtBal, 6)).toFixed(2);
             document.getElementById('bal-fta').innerText = parseFloat(ethers.formatUnits(ftaBal, 8)).toFixed(2);
            
-            const rate = await this.contracts.mining.exchangeRate();
-            this.currentRate = parseFloat(ethers.formatUnits(rate, 8));
-            document.getElementById('swap-rate').innerText = `1 USDT = ${this.currentRate.toFixed(2)} FTA`;
+            // --- GESTION DU TAUX (RATE) ---
+            // On essaie de lire le taux depuis le contrat, sinon on garde 2000 par défaut
+            try {
+                const rate = await this.contracts.mining.exchangeRate();
+                this.currentRate = parseFloat(ethers.formatUnits(rate, 8));
+            } catch (e) {
+                // Si le contrat n'a pas la fonction, on garde la valeur par défaut (2000)
+            }
+
+            // Affichage du taux dynamique
+            if (this.swapDirection === 'USDT_TO_FTA') {
+                // Achat de FTA
+                document.getElementById('swap-rate').innerText = `1 USDT = ${this.currentRate.toFixed(2)} FTA`;
+            } else {
+                // Vente de FTA
+                const inverseRate = 1 / this.currentRate;
+                document.getElementById('swap-rate').innerText = `1 FTA = ${inverseRate.toFixed(5)} USDT`;
+            }
+
             
             const fromBal = this.swapDirection === 'USDT_TO_FTA' ? usdtBal : ftaBal;
             const toBal = this.swapDirection === 'USDT_TO_FTA' ? ftaBal : usdtBal;
@@ -215,7 +229,6 @@ class Application {
         }
     }
 
-    // --- FONCTION CORRIGÉE : MES MACHINES ---
     async checkMyMachines() {
         const container = document.getElementById('my-rigs-list');
         const noRigsDiv = document.getElementById('no-rigs');
@@ -228,24 +241,18 @@ class Application {
             let hasMachines = false;
             let htmlContent = '';
             
-            // On va scanner chaque type de machine (0, 1, 2...) pour voir combien l'utilisateur en possède
             for (let i = 0; i < this.shopData.length; i++) {
                 let count = 0;
-
-                // TENTATIVE 1: Fonction standard 'userMachines'
                 try {
                     count = await this.contracts.mining.userMachines(this.user, i);
                 } catch (e) {
-                    // TENTATIVE 2: Fonction style ERC1155 'balanceOf'
                     try {
                         count = await this.contracts.mining.balanceOf(this.user, i);
                     } catch (e2) {
-                        // Si les deux échouent, on suppose 0 ou fonction non supportée
                         count = 0;
                     }
                 }
 
-                // Conversion du BigNumber en nombre entier
                 const amount = parseInt(count.toString());
 
                 if (amount > 0) {
@@ -274,7 +281,7 @@ class Application {
 
         } catch (e) {
             console.error("Erreur critique check machines:", e);
-            container.innerHTML = `<div class="card"><p style="color:var(--danger); text-align:center;">Erreur de lecture du contrat.</p></div>`;
+            container.innerHTML = `<div class="card"><p style="color:var(--danger); text-align:center;">Erreur de lecture.</p></div>`;
         }
     }
 
@@ -392,13 +399,26 @@ class Application {
         }
         document.getElementById('swap-from-in').value = '';
         document.getElementById('swap-to-in').value = '';
+        
+        // Mettre à jour le texte du taux immédiatement
         this.updateData();
     }
 
+    // --- CALCUL SWAP CORRIGÉ ---
     calcSwap() {
         const inputVal = document.getElementById('swap-from-in').value;
         if (!inputVal) { document.getElementById('swap-to-in').value = ''; return; }
-        const result = inputVal * this.currentRate;
+        
+        let result;
+        if (this.swapDirection === 'USDT_TO_FTA') {
+            // USDT -> FTA (Ex: 1 USDT * 2000 = 2000 FTA)
+            result = inputVal * this.currentRate;
+        } else {
+            // FTA -> USDT (Ex: 2000 FTA / 2000 = 1 USDT)
+            // Ou : 1 FTA * 0.0005 = 0.0005 USDT
+            result = inputVal / this.currentRate;
+        }
+        
         document.getElementById('swap-to-in').value = result.toFixed(5);
     }
     
