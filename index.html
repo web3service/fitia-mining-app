@@ -6,7 +6,6 @@
     <meta name="theme-color" content="#0f172a">
     <title>FITIA PRO MINER</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Ethers.js V6 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 </head>
 <body>
@@ -103,7 +102,6 @@
             <div id="view-swap" class="view">
                 <h2 class="view-title">💱 Échange</h2>
                 <div class="card swap-interface">
-                    <!-- From -->
                     <div class="swap-header">
                         <span>Vous payez</span>
                         <span>Solde: <span id="swap-bal-from">0</span></span>
@@ -113,13 +111,9 @@
                         <button class="max-btn" onclick="App.setMax()">MAX</button>
                         <div class="token-select" onclick="App.toggleSwap()" id="token-from-display">USDT</div>
                     </div>
-                    
-                    <!-- Arrow -->
                     <div class="swap-arrow-wrap">
                         <div class="swap-arrow" onclick="App.toggleSwap()">⇅</div>
                     </div>
-
-                    <!-- To -->
                     <div class="swap-header">
                         <span>Vous recevez</span>
                         <span>Solde: <span id="swap-bal-to">0</span></span>
@@ -128,7 +122,6 @@
                         <input type="number" id="swap-to-in" placeholder="0.0" readonly>
                         <div class="token-select" style="background:#333; cursor:default;" id="token-to-display">FTA</div>
                     </div>
-                    
                     <div class="rate-info" id="swap-rate">Chargement...</div>
                     <button class="btn-primary" id="btn-execute-swap" onclick="App.executeSwap()">ÉCHANGER</button>
                 </div>

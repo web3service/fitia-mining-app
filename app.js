@@ -9,7 +9,7 @@ const CONFIG = {
     CHAIN_ID: 137
 };
 
-// --- ABI (SÉCURISÉ ET OPTIMISÉ) ---
+// --- ABI ---
 const MINING_ABI = [
     "function buyMachine(uint256 typeId)",
     "function claimRewards()",
@@ -78,7 +78,7 @@ class Application {
 
     async connect() {
         if (!window.ethereum) return;
-        this.setLoader(true, "Connexion au wallet...");
+        this.setLoader(true, "Connexion...");
        
         try {
             await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -106,7 +106,7 @@ class Application {
 
         } catch (e) {
             console.error(e);
-            this.showToast("Erreur connexion: " + (e.reason || e.message), true);
+            this.showToast("Erreur connexion", true);
         }
         this.setLoader(false);
     }
@@ -134,7 +134,7 @@ class Application {
             let multiplier = 1e18;
             try {
                 multiplier = await this.contracts.mining.difficultyMultiplier();
-            } catch(e) { console.warn("Difficulté non lisible"); }
+            } catch(e) {}
 
             const realPowerBN = (rawPower * multiplier) / 1000000000000000000n;
             this.currentRealPower = parseFloat(ethers.formatUnits(realPowerBN, 8));
@@ -163,7 +163,11 @@ class Application {
             }
 
             document.getElementById('val-power').innerText = this.currentRealPower.toFixed(5);
-            document.getElementById('val-pending').innerText = this.pendingBalance.toFixed(5);
+            // Mise à jour visuelle seulement si le timer ne tourne pas (pour éviter les conflits)
+            // Mais on force une mise à jour périodique pour la précision
+            if (!this.miningTimer) {
+                 document.getElementById('val-pending').innerText = this.pendingBalance.toFixed(5);
+            }
 
             const usdtBal = await this.contracts.usdt.balanceOf(this.user);
             const ftaBal = await this.contracts.fta.balanceOf(this.user);
@@ -174,7 +178,6 @@ class Application {
             this.currentRate = parseFloat(ethers.formatUnits(rate, 8));
             document.getElementById('swap-rate').innerText = `1 USDT = ${this.currentRate.toFixed(2)} FTA`;
             
-            // Mise à jour balances swap
             const fromBal = this.swapDirection === 'USDT_TO_FTA' ? usdtBal : ftaBal;
             const toBal = this.swapDirection === 'USDT_TO_FTA' ? ftaBal : usdtBal;
             const fromDec = this.swapDirection === 'USDT_TO_FTA' ? 6 : 8;
@@ -210,6 +213,48 @@ class Application {
         }
     }
 
+    // --- FONCTION CLAIM MODIFIÉE POUR RESET IMMÉDIAT ---
+    async claim() {
+        if (!this.user) return this.connect();
+        
+        // 1. Arrêter le compteur immédiatement pour figer l'affichage
+        this.stopMiningCounter();
+        
+        this.setLoader(true, "Réclamation...");
+        try {
+            // 2. Envoyer la transaction
+            const tx = await this.contracts.mining.claimRewards();
+            
+            // 3. Reset immédiat de l'UI (Optimiste)
+            this.pendingBalance = 0;
+            document.getElementById('val-pending').innerText = "0.00000";
+            
+            // 4. Mettre à jour le temps de référence AVANT d'attendre la confirmation
+            // Cela assure que si l'utilisateur quitte, le temps est sauvegardé
+            localStorage.setItem(this.storageKey, Math.floor(Date.now() / 1000));
+
+            // 5. Attendre la confirmation blockchain
+            await tx.wait();
+           
+            this.showToast("Gains réceptionnés !");
+            
+            // 6. Mettre à jour les données (solde FTA augmenté)
+            await this.updateData();
+            
+            // 7. Redémarrer le compteur si on a des machines
+            if (this.currentRealPower > 0) {
+                this.startMiningCounter();
+            }
+
+        } catch (e) {
+            console.error(e);
+            this.showToast("Erreur Réclamation", true);
+            // En cas d'erreur, on relance le compteur avec les anciennes valeurs
+            this.startMiningCounter();
+        }
+        this.setLoader(false);
+    }
+
     async renderShop() {
         const container = document.getElementById('shop-list');
         try {
@@ -240,7 +285,7 @@ class Application {
                 container.appendChild(div);
             }
         } catch(e) {
-            container.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Impossible de charger la boutique</p>';
+            container.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Erreur chargement</p>';
         }
     }
 
@@ -261,33 +306,13 @@ class Application {
             const txBuy = await this.contracts.mining.buyMachine(id);
             await txBuy.wait();
             
-            this.showToast("Achat réussi ! Machine activée");
+            this.showToast("Achat réussi !");
             document.getElementById('shop-list').innerHTML = '';
             localStorage.setItem(this.storageKey, Math.floor(Date.now() / 1000));
             this.updateData();
         } catch (e) {
             console.error(e);
             this.showToast("Erreur Achat", true);
-        }
-        this.setLoader(false);
-    }
-
-    async claim() {
-        if (!this.user) return this.connect();
-        this.setLoader(true, "Réclamation...");
-        try {
-            const tx = await this.contracts.mining.claimRewards();
-            await tx.wait();
-           
-            this.pendingBalance = 0;
-            document.getElementById('val-pending').innerText = "0.00000";
-            localStorage.setItem(this.storageKey, Math.floor(Date.now() / 1000));
-           
-            this.showToast("Gains réceptionnés !");
-            this.updateData();
-        } catch (e) {
-            console.error(e);
-            this.showToast("Erreur Réclamation", true);
         }
         this.setLoader(false);
     }
@@ -315,22 +340,15 @@ class Application {
         } else {
             fromDisplay.innerText = 'FTA'; toDisplay.innerText = 'USDT';
         }
-        
-        // Reset inputs
         document.getElementById('swap-from-in').value = '';
         document.getElementById('swap-to-in').value = '';
-        this.updateData(); // Refresh balances texts
+        this.updateData();
     }
 
     calcSwap() {
         const inputVal = document.getElementById('swap-from-in').value;
-        if (!inputVal) {
-            document.getElementById('swap-to-in').value = '';
-            return;
-        }
-        
-        // Calcul simple basé sur le taux
-        const result = inputVal * this.currentRate; // Note: ajustez la formule si le taux est inversé pour FTA->USDT
+        if (!inputVal) { document.getElementById('swap-to-in').value = ''; return; }
+        const result = inputVal * this.currentRate;
         document.getElementById('swap-to-in').value = result.toFixed(5);
     }
     
@@ -375,7 +393,6 @@ class Application {
             document.getElementById('swap-to-in').value = '';
             this.updateData();
         } catch (e) { 
-            console.error(e);
             this.showToast("Erreur Swap", true); 
         }
         this.setLoader(false);
@@ -385,31 +402,23 @@ class Application {
     initVisualizer() {
         const canvas = document.getElementById('mining-canvas');
         if (!canvas) return;
-       
-        // Set resolution
         canvas.width = canvas.offsetWidth * 2;
         canvas.height = canvas.offsetHeight * 2;
-       
         this.vizContext = canvas.getContext('2d');
         this.vizBars = [];
-       
         const barCount = 20;
         for(let i=0; i<barCount; i++) {
             this.vizBars.push({
                 x: i * (canvas.width / barCount),
                 width: (canvas.width / barCount) - 4,
-                height: 0,
-                targetHeight: 0
+                height: 0, targetHeight: 0
             });
         }
-       
         this.animateVisualizer();
     }
 
     updateVisualizerIntensity(power) {
-        let intensity = 0;
-        if(power > 0) intensity = Math.min((power * 500) + 10, 100);
-       
+        let intensity = power > 0 ? Math.min((power * 500) + 10, 100) : 0;
         this.vizBars.forEach(bar => {
             bar.targetHeight = (this.vizContext.canvas.height * (intensity/100)) * (0.3 + Math.random() * 0.7);
         });
@@ -418,25 +427,17 @@ class Application {
     animateVisualizer() {
         const ctx = this.vizContext;
         if(!ctx) return;
-       
         const canvas = ctx.canvas;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-       
         ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary');
-       
         this.vizBars.forEach(bar => {
-            // Smooth animation
             bar.height += (bar.targetHeight - bar.height) * 0.15;
-           
             const y = canvas.height - bar.height;
             ctx.fillRect(bar.x, y, bar.width, bar.height);
-           
-            // Random flicker if active
             bar.targetHeight += (Math.random() - 0.5) * 10;
             if(bar.targetHeight < 0) bar.targetHeight = 0;
             if(bar.targetHeight > canvas.height) bar.targetHeight = canvas.height;
         });
-       
         this.animationId = requestAnimationFrame(() => this.animateVisualizer());
     }
 
@@ -450,7 +451,6 @@ class Application {
             activeView.classList.add('active');
             activeView.style.display = 'block';
         }
-
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         if(event && event.currentTarget) event.currentTarget.classList.add('active');
     }
