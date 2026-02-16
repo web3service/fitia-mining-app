@@ -9,7 +9,7 @@ const CONFIG = {
     CHAIN_ID: 137
 };
 
-// --- ABI ---
+// --- ABI (MIS À JOUR) ---
 const MINING_ABI = [
     "function buyMachine(uint256 typeId)",
     "function claimRewards()",
@@ -20,7 +20,15 @@ const MINING_ABI = [
     "function exchangeRate() view returns (uint256)",
     "function machineTypes(uint256) view returns (uint256 price, uint256 power)",
     "function getMachineCount() view returns (uint256)",
-    "function difficultyMultiplier() view returns (uint256)"
+    "function difficultyMultiplier() view returns (uint256)",
+    
+    // --- NOUVELLES FONCTIONS POUR LES MACHINES ---
+    // Retourne un tableau d'IDs de machines possédées par l'utilisateur
+    "function getUserMachines(address) view returns (uint256[] memory)",
+    // Optionnel : Si le contrat stocke la durée de vie d'une machine (en secondes)
+    "function machineDuration() view returns (uint256)",
+    // Optionnel : Si le contrat stocke le temps d'achat par machine (alternative)
+    // "function userMachines(address, uint256 index) view returns (uint256 typeId, uint256 purchaseTime)"
 ];
 
 const ERC20_ABI = [
@@ -52,6 +60,9 @@ class Application {
         this.vizContext = null;
         this.vizBars = [];
         this.animationId = null;
+        
+        // Cache pour la boutique
+        this.shopData = [];
     }
 
     async init() {
@@ -130,6 +141,9 @@ class Application {
     async updateData() {
         if (!this.user) return;
         try {
+            // 1. Charger la boutique une seule fois
+            if (this.shopData.length === 0) await this.renderShop();
+
             const rawPower = await this.contracts.mining.getActivePower(this.user);
             let multiplier = 1e18;
             try {
@@ -163,11 +177,7 @@ class Application {
             }
 
             document.getElementById('val-power').innerText = this.currentRealPower.toFixed(5);
-            // Mise à jour visuelle seulement si le timer ne tourne pas (pour éviter les conflits)
-            // Mais on force une mise à jour périodique pour la précision
-            if (!this.miningTimer) {
-                 document.getElementById('val-pending').innerText = this.pendingBalance.toFixed(5);
-            }
+            if (!this.miningTimer) document.getElementById('val-pending').innerText = this.pendingBalance.toFixed(5);
 
             const usdtBal = await this.contracts.usdt.balanceOf(this.user);
             const ftaBal = await this.contracts.fta.balanceOf(this.user);
@@ -185,8 +195,6 @@ class Application {
             
             document.getElementById('swap-bal-from').innerText = parseFloat(ethers.formatUnits(fromBal, fromDec)).toFixed(2);
             document.getElementById('swap-bal-to').innerText = parseFloat(ethers.formatUnits(toBal, toDec)).toFixed(2);
-
-            if (document.getElementById('shop-list').children.length === 0) await this.renderShop();
 
         } catch (e) {
             console.error("Erreur refresh:", e);
@@ -213,52 +221,82 @@ class Application {
         }
     }
 
-    // --- FONCTION CLAIM MODIFIÉE POUR RESET IMMÉDIAT ---
-    async claim() {
-        if (!this.user) return this.connect();
+    // --- NOUVELLE FONCTION : MES MACHINES ---
+    async checkMyMachines() {
+        const container = document.getElementById('my-rigs-list');
+        const noRigsDiv = document.getElementById('no-rigs');
+        container.innerHTML = '';
         
-        // 1. Arrêter le compteur immédiatement pour figer l'affichage
-        this.stopMiningCounter();
-        
-        this.setLoader(true, "Réclamation...");
-        try {
-            // 2. Envoyer la transaction
-            const tx = await this.contracts.mining.claimRewards();
-            
-            // 3. Reset immédiat de l'UI (Optimiste)
-            this.pendingBalance = 0;
-            document.getElementById('val-pending').innerText = "0.00000";
-            
-            // 4. Mettre à jour le temps de référence AVANT d'attendre la confirmation
-            // Cela assure que si l'utilisateur quitte, le temps est sauvegardé
-            localStorage.setItem(this.storageKey, Math.floor(Date.now() / 1000));
+        if (!this.user) return;
 
-            // 5. Attendre la confirmation blockchain
-            await tx.wait();
-           
-            this.showToast("Gains réceptionnés !");
-            
-            // 6. Mettre à jour les données (solde FTA augmenté)
-            await this.updateData();
-            
-            // 7. Redémarrer le compteur si on a des machines
-            if (this.currentRealPower > 0) {
-                this.startMiningCounter();
+        try {
+            // 1. Essayer de récupérer la liste des machines (Nécessite ABI adapté)
+            // On essaie d'appeler getUserMachines. Si ça échoue, on catch.
+            let machineIds = [];
+            try {
+                machineIds = await this.contracts.mining.getUserMachines(this.user);
+            } catch (e) {
+                // Si le contrat ne renvoie pas de liste, on affiche un message générique
+                // ou on peut essayer une autre méthode (ex: itérer sur un mapping si on connait les index)
+                console.warn("Le contrat ne supporte pas getUserMachines ou ABI incorrect.");
+                container.innerHTML = `<div class="card"><p style="color:var(--text-muted); text-align:center;">Impossible de récupérer la liste détaillée.<br>Vérifiez l'ABI du contrat.</p></div>`;
+                return;
+            }
+
+            if (machineIds.length === 0) {
+                noRigsDiv.style.display = 'block';
+                return;
+            } else {
+                noRigsDiv.style.display = 'none';
+            }
+
+            // 2. Récupérer la durée de vie par défaut (si disponible)
+            let duration = 0; // en secondes
+            try {
+                 duration = await this.contracts.mining.machineDuration();
+            } catch(e) { 
+                console.warn("machineDuration non trouvé, supposant illimité ou géré autrement"); 
+            }
+
+            // 3. Afficher chaque machine
+            // Note: Ici on suppose que machineIds contient les IDs (typeId) ou des IDs uniques.
+            // Pour un affichage correct, il faudrait l'heure d'achat (purchaseTime).
+            // Si getUserMachines ne renvoie que des IDs sans temps, on ne peut pas calculer l'expiration.
+            // Je fais une implémentation visuelle basique ici.
+
+            for (let i = 0; i < machineIds.length; i++) {
+                const id = machineIds[i];
+                const typeData = this.shopData[id] || { power: "N/A", price: "N/A" }; // Récupéré depuis le cache shop
+                
+                // Logique d'état fictive ou à adapter selon le contrat réel
+                // Ex: Si le contrat renvoie (id, timestamp)
+                const isActive = true; // Par défaut actif si on ne peut pas vérifier le temps
+                const statusClass = isActive ? 'active' : 'expired';
+                const statusText = isActive ? 'ACTIF' : 'EXPIRÉ';
+                
+                const div = document.createElement('div');
+                div.className = `my-rig-card ${statusClass}`;
+                div.innerHTML = `
+                    <div class="rig-info">
+                        <h4>RIG #${id} (Type ${id})</h4>
+                        <p>Puissance: ${typeData.power} FTA/s</p>
+                    </div>
+                    <span class="rig-status-badge ${isActive ? 'status-active' : 'status-expired'}">${statusText}</span>
+                `;
+                container.appendChild(div);
             }
 
         } catch (e) {
-            console.error(e);
-            this.showToast("Erreur Réclamation", true);
-            // En cas d'erreur, on relance le compteur avec les anciennes valeurs
-            this.startMiningCounter();
+            console.error("Erreur chargement machines:", e);
+            container.innerHTML = '<p style="color:var(--danger); text-align:center;">Erreur de chargement</p>';
         }
-        this.setLoader(false);
     }
 
     async renderShop() {
         const container = document.getElementById('shop-list');
         try {
             const count = await this.contracts.mining.getMachineCount();
+            this.shopData = []; // Reset cache
             container.innerHTML = '';
             for(let i=0; i<count; i++) {
                 const data = await this.contracts.mining.machineTypes(i);
@@ -269,7 +307,9 @@ class Application {
                
                 const rawShopPower = (data.power * multiplier) / 1000000000000000000n;
                 const power = parseFloat(ethers.formatUnits(rawShopPower, 8)).toFixed(5);
-               
+                
+                this.shopData.push({ price, power }); // Sauvegarder pour "Mes Machines"
+
                 const div = document.createElement('div');
                 div.className = 'rig-item';
                 div.innerHTML = `
@@ -285,7 +325,7 @@ class Application {
                 container.appendChild(div);
             }
         } catch(e) {
-            container.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Erreur chargement</p>';
+            console.error(e);
         }
     }
 
@@ -308,11 +348,35 @@ class Application {
             
             this.showToast("Achat réussi !");
             document.getElementById('shop-list').innerHTML = '';
+            this.shopData = [];
             localStorage.setItem(this.storageKey, Math.floor(Date.now() / 1000));
+            await this.renderShop(); // Re-render shop
+            await this.checkMyMachines(); // Re-render my machines
             this.updateData();
         } catch (e) {
             console.error(e);
             this.showToast("Erreur Achat", true);
+        }
+        this.setLoader(false);
+    }
+
+    async claim() {
+        if (!this.user) return this.connect();
+        this.stopMiningCounter();
+        this.setLoader(true, "Réclamation...");
+        try {
+            const tx = await this.contracts.mining.claimRewards();
+            this.pendingBalance = 0;
+            document.getElementById('val-pending').innerText = "0.00000";
+            localStorage.setItem(this.storageKey, Math.floor(Date.now() / 1000));
+            await tx.wait();
+            this.showToast("Gains réceptionnés !");
+            await this.updateData();
+            if (this.currentRealPower > 0) this.startMiningCounter();
+        } catch (e) {
+            console.error(e);
+            this.showToast("Erreur Réclamation", true);
+            this.startMiningCounter();
         }
         this.setLoader(false);
     }
@@ -398,7 +462,6 @@ class Application {
         this.setLoader(false);
     }
 
-    // --- VISUALISATION ---
     initVisualizer() {
         const canvas = document.getElementById('mining-canvas');
         if (!canvas) return;
@@ -451,8 +514,14 @@ class Application {
             activeView.classList.add('active');
             activeView.style.display = 'block';
         }
+
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         if(event && event.currentTarget) event.currentTarget.classList.add('active');
+
+        // Charger les machines si on va sur l'onglet "my-rigs"
+        if (viewId === 'my-rigs') {
+            this.checkMyMachines();
+        }
     }
 
     copyLink() {

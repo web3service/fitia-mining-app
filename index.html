@@ -31,8 +31,6 @@
            
             <!-- DASHBOARD -->
             <div id="view-dashboard" class="view active">
-               
-                <!-- PARRAINAGE -->
                 <div class="card glass" id="ref-box">
                     <div class="card-header">
                         <h3>Système de Parrainage</h3>
@@ -50,7 +48,6 @@
                     </div>
                 </div>
 
-                <!-- STATS -->
                 <div class="stats-grid">
                     <div class="stat-card primary">
                         <small>PUISSANCE</small>
@@ -64,7 +61,6 @@
                     </div>
                 </div>
 
-                <!-- VISUALISEUR -->
                 <div class="card visualizer-card">
                     <div class="viz-header">
                         <small>ACTIVITÉ MINIÈRE</small>
@@ -73,13 +69,11 @@
                     <canvas id="mining-canvas"></canvas>
                 </div>
 
-                <!-- ACTION -->
                 <button class="btn-mega" onclick="App.claim()">
                     <span class="pulse-ring"></span>
                     RÉCLAMER LES GAINS
                 </button>
 
-                <!-- SOLDES -->
                 <div class="card balances-card">
                     <div class="row-between">
                         <span>💰 USDT</span>
@@ -92,9 +86,21 @@
                 </div>
             </div>
 
+            <!-- MES MACHINES (NOUVEAU) -->
+            <div id="view-my-rigs" class="view">
+                <h2 class="view-title">⚙️ Mes Machines</h2>
+                <div id="my-rigs-list" class="rigs-list-container">
+                    <!-- Les machines seront injectées ici -->
+                </div>
+                <div id="no-rigs" class="card" style="text-align:center; display:none;">
+                    <p>Vous n'avez pas encore de machines.</p>
+                    <button class="btn-primary" onclick="App.nav('shop')" style="margin-top:10px;">Acheter une machine</button>
+                </div>
+            </div>
+
             <!-- SHOP -->
             <div id="view-shop" class="view">
-                <h2 class="view-title">⛏️ Marché des Rigs</h2>
+                <h2 class="view-title">🛒 Marché des Rigs</h2>
                 <div id="shop-list" class="grid-list"></div>
             </div>
 
@@ -123,7 +129,7 @@
                         <div class="token-select" style="background:#333; cursor:default;" id="token-to-display">FTA</div>
                     </div>
                     <div class="rate-info" id="swap-rate">Chargement...</div>
-                    <button class="btn-primary" id="btn-execute-swap" onclick="App.executeSwap()">ÉCHANGER</button>
+                    <button class="btn-primary" onclick="App.executeSwap()">ÉCHANGER</button>
                 </div>
             </div>
 
@@ -133,6 +139,11 @@
             <button class="nav-item active" onclick="App.nav('dashboard')">
                 <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
                 <span>Accueil</span>
+            </button>
+            <!-- Nouveau bouton Mes Rigs -->
+            <button class="nav-item" onclick="App.nav('my-rigs')">
+                <svg viewBox="0 0 24 24"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
+                <span>Mes Rigs</span>
             </button>
             <button class="nav-item" onclick="App.nav('shop')">
                 <svg viewBox="0 0 24 24"><path d="M12 2l-5.5 9h11z"/></svg>
