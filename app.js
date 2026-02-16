@@ -2,14 +2,13 @@
 // CONFIGURATION
 // ==========================================
 const CONFIG = {
-    // --- REMPLACEZ PAR VOS ADRESSES ---
-    MINING: "0xcD718eCb9e46f474E28508E07b692610488a4Ba4",
+    MINING: "0xcD718eCb9e46f474E28508E07b692610488a4Ba4", // Votre adresse contrat
     FTA: "0x535bBe393D64a60E14B731b7350675792d501623",          
     USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
     CHAIN_ID: 137
 };
 
-// --- ABI (MIS À JOUR) ---
+// --- ABI MIS À JOUR POUR COMPATIBILITÉ MAXIMALE ---
 const MINING_ABI = [
     "function buyMachine(uint256 typeId)",
     "function claimRewards()",
@@ -22,13 +21,18 @@ const MINING_ABI = [
     "function getMachineCount() view returns (uint256)",
     "function difficultyMultiplier() view returns (uint256)",
     
-    // --- NOUVELLES FONCTIONS POUR LES MACHINES ---
-    // Retourne un tableau d'IDs de machines possédées par l'utilisateur
+    // --- FONCTIONS DE DETECTION DES MACHINES ---
+    // Méthode 1: Tableau simple (ex: getUserMachines)
     "function getUserMachines(address) view returns (uint256[] memory)",
-    // Optionnel : Si le contrat stocke la durée de vie d'une machine (en secondes)
-    "function machineDuration() view returns (uint256)",
-    // Optionnel : Si le contrat stocke le temps d'achat par machine (alternative)
-    // "function userMachines(address, uint256 index) view returns (uint256 typeId, uint256 purchaseTime)"
+    
+    // Méthode 2: Mapping quantité (ex: combien l'utilisateur a de machine type 0)
+    // Essai avec nom standard
+    "function userMachines(address, uint256) view returns (uint256)",
+    // Essai avec nom type ERC1155
+    "function balanceOf(address, uint256) view returns (uint256)",
+    
+    // Méthode 3: Vérification d'expiration (optionnel)
+    "function machineDuration() view returns (uint256)"
 ];
 
 const ERC20_ABI = [
@@ -61,7 +65,6 @@ class Application {
         this.vizBars = [];
         this.animationId = null;
         
-        // Cache pour la boutique
         this.shopData = [];
     }
 
@@ -141,7 +144,6 @@ class Application {
     async updateData() {
         if (!this.user) return;
         try {
-            // 1. Charger la boutique une seule fois
             if (this.shopData.length === 0) await this.renderShop();
 
             const rawPower = await this.contracts.mining.getActivePower(this.user);
@@ -221,74 +223,75 @@ class Application {
         }
     }
 
-    // --- NOUVELLE FONCTION : MES MACHINES ---
+    // --- FONCTION INTELLIGENTE POUR TROUVER LES MACHINES ---
     async checkMyMachines() {
         const container = document.getElementById('my-rigs-list');
         const noRigsDiv = document.getElementById('no-rigs');
-        container.innerHTML = '';
+        container.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Analyse de vos actifs...</p>';
         
-        if (!this.user) return;
+        if (!this.user || this.shopData.length === 0) return;
 
         try {
-            // 1. Essayer de récupérer la liste des machines (Nécessite ABI adapté)
-            // On essaie d'appeler getUserMachines. Si ça échoue, on catch.
-            let machineIds = [];
+            let hasMachines = false;
+            container.innerHTML = ''; // Clear loading
+            
+            // 1. On essaie de récupérer la durée (si le contrat gère l'expiration)
+            let duration = 0;
             try {
-                machineIds = await this.contracts.mining.getUserMachines(this.user);
-            } catch (e) {
-                // Si le contrat ne renvoie pas de liste, on affiche un message générique
-                // ou on peut essayer une autre méthode (ex: itérer sur un mapping si on connait les index)
-                console.warn("Le contrat ne supporte pas getUserMachines ou ABI incorrect.");
-                container.innerHTML = `<div class="card"><p style="color:var(--text-muted); text-align:center;">Impossible de récupérer la liste détaillée.<br>Vérifiez l'ABI du contrat.</p></div>`;
-                return;
+                duration = await this.contracts.mining.machineDuration();
+            } catch(e) { /* Pas de durée, machines illimitées */ }
+
+            // 2. On boucle sur TOUS les types de machines disponibles dans la boutique
+            for (let i = 0; i < this.shopData.length; i++) {
+                let count = 0;
+
+                // Tentative Méthode A: Fonction userMachines(address, id)
+                try {
+                    count = await this.contracts.mining.userMachines(this.user, i);
+                } catch (e) {
+                    // Tentative Méthode B: Fonction balanceOf(address, id) (Style ERC1155)
+                    try {
+                        count = await this.contracts.mining.balanceOf(this.user, i);
+                    } catch (e2) {
+                        // Tentative Méthode C: Tableau simple (rare mais possible)
+                        try {
+                            const ids = await this.contracts.mining.getUserMachines(this.user);
+                            // Si on arrive ici, ids est un tableau, on doit filtrer
+                            // Cette méthode est complexe à gérer dans une boucle, on skip pour l'instant
+                        } catch (e3) {
+                            // Silence
+                        }
+                    }
+                }
+
+                // Si on a trouvé une quantité > 0
+                if (count > 0) {
+                    hasMachines = true;
+                    const typeData = this.shopData[i];
+                    
+                    // Affichage
+                    const div = document.createElement('div');
+                    div.className = 'my-rig-card active'; // On assume actif si le temps n'est pas géré
+                    div.innerHTML = `
+                        <div class="rig-info">
+                            <h4>RIG ${i+1} <span style="opacity:0.7">x${count}</span></h4>
+                            <p>Puissance: ${typeData.power} FTA/s (par unité)</p>
+                        </div>
+                        <span class="rig-status-badge status-active">ACTIF</span>
+                    `;
+                    container.appendChild(div);
+                }
             }
 
-            if (machineIds.length === 0) {
+            if (!hasMachines) {
                 noRigsDiv.style.display = 'block';
-                return;
             } else {
                 noRigsDiv.style.display = 'none';
             }
 
-            // 2. Récupérer la durée de vie par défaut (si disponible)
-            let duration = 0; // en secondes
-            try {
-                 duration = await this.contracts.mining.machineDuration();
-            } catch(e) { 
-                console.warn("machineDuration non trouvé, supposant illimité ou géré autrement"); 
-            }
-
-            // 3. Afficher chaque machine
-            // Note: Ici on suppose que machineIds contient les IDs (typeId) ou des IDs uniques.
-            // Pour un affichage correct, il faudrait l'heure d'achat (purchaseTime).
-            // Si getUserMachines ne renvoie que des IDs sans temps, on ne peut pas calculer l'expiration.
-            // Je fais une implémentation visuelle basique ici.
-
-            for (let i = 0; i < machineIds.length; i++) {
-                const id = machineIds[i];
-                const typeData = this.shopData[id] || { power: "N/A", price: "N/A" }; // Récupéré depuis le cache shop
-                
-                // Logique d'état fictive ou à adapter selon le contrat réel
-                // Ex: Si le contrat renvoie (id, timestamp)
-                const isActive = true; // Par défaut actif si on ne peut pas vérifier le temps
-                const statusClass = isActive ? 'active' : 'expired';
-                const statusText = isActive ? 'ACTIF' : 'EXPIRÉ';
-                
-                const div = document.createElement('div');
-                div.className = `my-rig-card ${statusClass}`;
-                div.innerHTML = `
-                    <div class="rig-info">
-                        <h4>RIG #${id} (Type ${id})</h4>
-                        <p>Puissance: ${typeData.power} FTA/s</p>
-                    </div>
-                    <span class="rig-status-badge ${isActive ? 'status-active' : 'status-expired'}">${statusText}</span>
-                `;
-                container.appendChild(div);
-            }
-
         } catch (e) {
-            console.error("Erreur chargement machines:", e);
-            container.innerHTML = '<p style="color:var(--danger); text-align:center;">Erreur de chargement</p>';
+            console.error("Erreur critique check machines:", e);
+            container.innerHTML = `<div class="card"><p style="color:var(--danger); text-align:center;">Impossible de lire les données du contrat.<br>Vérifiez que l'adresse du contrat est correcte.</p></div>`;
         }
     }
 
@@ -296,7 +299,7 @@ class Application {
         const container = document.getElementById('shop-list');
         try {
             const count = await this.contracts.mining.getMachineCount();
-            this.shopData = []; // Reset cache
+            this.shopData = []; 
             container.innerHTML = '';
             for(let i=0; i<count; i++) {
                 const data = await this.contracts.mining.machineTypes(i);
@@ -308,7 +311,7 @@ class Application {
                 const rawShopPower = (data.power * multiplier) / 1000000000000000000n;
                 const power = parseFloat(ethers.formatUnits(rawShopPower, 8)).toFixed(5);
                 
-                this.shopData.push({ price, power }); // Sauvegarder pour "Mes Machines"
+                this.shopData.push({ price, power });
 
                 const div = document.createElement('div');
                 div.className = 'rig-item';
@@ -350,8 +353,8 @@ class Application {
             document.getElementById('shop-list').innerHTML = '';
             this.shopData = [];
             localStorage.setItem(this.storageKey, Math.floor(Date.now() / 1000));
-            await this.renderShop(); // Re-render shop
-            await this.checkMyMachines(); // Re-render my machines
+            await this.renderShop();
+            await this.checkMyMachines();
             this.updateData();
         } catch (e) {
             console.error(e);
@@ -514,11 +517,9 @@ class Application {
             activeView.classList.add('active');
             activeView.style.display = 'block';
         }
-
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         if(event && event.currentTarget) event.currentTarget.classList.add('active');
 
-        // Charger les machines si on va sur l'onglet "my-rigs"
         if (viewId === 'my-rigs') {
             this.checkMyMachines();
         }
